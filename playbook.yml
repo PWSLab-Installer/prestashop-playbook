@@ -99,6 +99,13 @@
       when:
         - os_check.stdout | regex_search("Ubuntu")
 
+    -   name: Absent the Irrelevant files - Ubuntu 20
+        file:
+          path: /etc/apt/sources.list.d/ansible-ubuntu-ansible-focal.list
+          state: absent
+        when:
+          - os_check.stdout | regex_search("Ubuntu 20")
+
     - name: Installing Apache
       include_role:
         name: pwslab.apache
