@@ -1,0 +1,242 @@
+---
+
+    -   name: Create schema for prestashop
+        shell: mysql -u root -p'root' -e "CREATE SCHEMA prestashop DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;"
+
+    -   name: Create DB User prestashop
+        shell: mysql -u root -p'root' -e "CREATE USER 'prestashop'@'localhost' IDENTIFIED BY 'prestashop';"
+
+    -   name: Grant Privs to User prestashop
+        shell: mysql -u root -p'root' -e "GRANT ALL PRIVILEGES ON prestashop.* TO 'prestashop'@'localhost';"
+    
+    -   name: Alter Privs to User prestashop
+        shell: mysql -u root -p'root' -e "ALTER USER prestashop@'localhost' IDENTIFIED WITH mysql_native_password BY 'prestashop';"
+        when:
+            - os_check.stdout | regex_search("Ubuntu 20")
+
+    -   name: Create Prestashop Directory
+        file:
+            path: /var/www/html/prestashop
+            state: directory
+            # recurse: yes
+            # owner: www-data
+            # mode: '0755'
+
+    -   name: Download Prestashop
+        get_url:
+            url: https://download.prestashop.com/download/releases/prestashop_{{ prestashop_version }}.zip
+            dest: /opt
+        when:
+            - os_check.stdout | regex_search("Ubuntu") or os_check.stdout | regex_search("CentOS")
+
+    -   name: Find Service package
+        find: 
+            paths: "/opt" 
+            patterns: "prestashop_*.zip"
+        register: find_result
+
+    -   name: Unpack service on remote host
+        unarchive: 
+            src: "{{ item.path }}" 
+            dest: "/opt"
+        with_items: "{{ find_result.files }}"
+
+    -   name: Extract Prestashop into /tmp
+        unarchive:
+            src: /opt/prestashop.zip
+            dest: /var/www/html/prestashop/
+        when:
+            - os_check.stdout | regex_search("Ubuntu") or os_check.stdout | regex_search("CentOS")
+
+
+    # -   name: Move the Repos Around
+    #     command: 
+    #          mv /tmp/upload/ /var/www/html/prestashop
+    #     ignore_errors: yes
+    #     when:
+    #         - os_check.stdout | regex_search("Ubuntu") or os_check.stdout | regex_search("CentOS")
+    
+    -   name: Grant Permissions
+        file:
+            path: /var/www/html/prestashop/
+            recurse: yes
+            owner: www-data
+            mode: '0755'
+        when:
+            - os_check.stdout | regex_search("Ubuntu") 
+
+    -   name: Grant Permissions
+        file:
+            path: /var/www/html/prestashop/
+            recurse: yes
+            owner: apache
+            mode: '0755'
+        when:
+            - os_check.stdout | regex_search("CentOS")
+
+
+    # -   name: Copy files
+    #     copy:
+    #         src: /var/www/html/prestashop/config-dist.php
+    #         dest: /var/www/html/prestashop/config.php
+    #         owner: www-data
+    #         group: www-data
+    #         mode: '0777'
+    #     when:
+    #         - os_check.stdout | regex_search("Ubuntu") 
+
+    # -   name: Copy files
+    #     copy:
+    #         src: /var/www/html/prestashop/admin/config-dist.php
+    #         dest: /var/www/html/prestashop/admin/config.php
+    #         owner: www-data
+    #         group: www-data
+    #         mode: '0777'
+    #     when:
+    #         - os_check.stdout | regex_search("Ubuntu") 
+
+    
+    # -   name: Copy files
+    #     copy:
+    #         src: /var/www/html/prestashop/config-dist.php
+    #         dest: /var/www/html/prestashop/config.php
+    #         owner: apache
+    #         group: apache
+    #         mode: '0777'
+    #     when:
+    #         - os_check.stdout | regex_search("CentOS") 
+
+    # -   name: Copy files
+    #     copy:
+    #         src: /var/www/html/prestashop/admin/config-dist.php
+    #         dest: /var/www/html/prestashop/admin/config.php
+    #         owner: apache
+    #         group: apache
+    #         mode: '0777'
+    #     when:
+    #         - os_check.stdout | regex_search("CentOS") 
+
+    -   name: Sets Apache conf file - Ubuntu
+        become: true
+        template:
+            src: "prestashop.conf.j2"
+            dest: "/etc/apache2/sites-available/prestashop.conf"
+        when:
+                - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Disable default config
+        command: a2ensite prestashop.conf
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Disable default config
+        command: a2dissite 000-default.conf
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Install PHP Packages
+        apt: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - php-cli
+            - php-common
+            - php-mbstring
+            - php-gd
+            - php-intl
+            - php-xml
+            - php-mysql
+            - php-zip
+            - php-curl
+            - php-xmlrpc
+            - libapache2-mod-php
+            - php-gd
+            - php-zip
+            - php-curl
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Restart Apache
+        service:
+            name: apache2
+            state: restarted
+        when:
+            - os_check.stdout | regex_search("Ubuntu")
+
+    -   name: Sets Apache conf file - CentOS
+        become: true
+        template:
+            src: "prestashop.conf.j2"
+            dest: "/etc/httpd/conf.d/prestashop.conf"
+        when:
+                - os_check.stdout | regex_search("CentOS")
+
+    -   name: Install PHP Packages
+        yum: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - php-mcrypt
+            - curl
+            - zlib
+            - php-gd
+            - php-mbstring
+            - php-xml
+            - php-mysql
+            - php-zip   
+        when:
+            - os_check.stdout | regex_search("CentOS Linux 8")
+
+    -   name: Enable remi repo - CentOS 7
+        command: yum-config-manager --enable remi-php74
+        when: 
+            - os_check.stdout | regex_search("CentOS Linux 7")
+
+    -   name: Install PHP Packages
+        yum: 
+            name: "{{ item }}" 
+            update_cache: yes 
+            state: present
+        loop: 
+            - curl
+            - zlib
+            - php-gd
+            - php-mbstring
+            - php-xml
+            - php-zip
+            - php-pdo_mysql
+        when:
+            - os_check.stdout | regex_search("CentOS Linux 7")
+
+    -   name: Restart Apache
+        service:
+            name: httpd
+            state: restarted
+        when:
+            - os_check.stdout | regex_search("CentOS")
+
+    -   name: Granting Permissions
+        file:
+            path: /var/www/html/prestashop
+            recurse: yes
+            owner: www-data
+            mode: '0777'
+        when:
+            - os_check.stdout | regex_search("Ubuntu") 
+
+    -   name: Granting Permissions
+        file:
+            path: /var/www/html/prestashop
+            recurse: yes
+            owner: apache
+            mode: '0777'
+        when:
+            - os_check.stdout | regex_search("CentOS") 
+
+    -   name: Disable SELinux
+        selinux:
+            state: disabled
+        when:
+            - os_check.stdout | regex_search("CentOS") 
