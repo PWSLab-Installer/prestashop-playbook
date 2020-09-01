@@ -18,10 +18,7 @@
         file:
             path: /var/www/html/prestashop
             state: directory
-            # recurse: yes
-            # owner: www-data
-            # mode: '0755'
-
+            
     -   name: Download Prestashop
         get_url:
             url: https://download.prestashop.com/download/releases/prestashop_{{ prestashop_version }}.zip
@@ -47,14 +44,6 @@
             dest: /var/www/html/prestashop/
         when:
             - os_check.stdout | regex_search("Ubuntu") or os_check.stdout | regex_search("CentOS")
-
-
-    # -   name: Move the Repos Around
-    #     command: 
-    #          mv /tmp/upload/ /var/www/html/prestashop
-    #     ignore_errors: yes
-    #     when:
-    #         - os_check.stdout | regex_search("Ubuntu") or os_check.stdout | regex_search("CentOS")
     
     -   name: Grant Permissions
         file:
@@ -73,48 +62,6 @@
             mode: '0755'
         when:
             - os_check.stdout | regex_search("CentOS")
-
-
-    # -   name: Copy files
-    #     copy:
-    #         src: /var/www/html/prestashop/config-dist.php
-    #         dest: /var/www/html/prestashop/config.php
-    #         owner: www-data
-    #         group: www-data
-    #         mode: '0777'
-    #     when:
-    #         - os_check.stdout | regex_search("Ubuntu") 
-
-    # -   name: Copy files
-    #     copy:
-    #         src: /var/www/html/prestashop/admin/config-dist.php
-    #         dest: /var/www/html/prestashop/admin/config.php
-    #         owner: www-data
-    #         group: www-data
-    #         mode: '0777'
-    #     when:
-    #         - os_check.stdout | regex_search("Ubuntu") 
-
-    
-    # -   name: Copy files
-    #     copy:
-    #         src: /var/www/html/prestashop/config-dist.php
-    #         dest: /var/www/html/prestashop/config.php
-    #         owner: apache
-    #         group: apache
-    #         mode: '0777'
-    #     when:
-    #         - os_check.stdout | regex_search("CentOS") 
-
-    # -   name: Copy files
-    #     copy:
-    #         src: /var/www/html/prestashop/admin/config-dist.php
-    #         dest: /var/www/html/prestashop/admin/config.php
-    #         owner: apache
-    #         group: apache
-    #         mode: '0777'
-    #     when:
-    #         - os_check.stdout | regex_search("CentOS") 
 
     -   name: Sets Apache conf file - Ubuntu
         become: true
@@ -182,6 +129,7 @@
             - curl
             - zlib
             - php-gd
+            - php-intl
             - php-mbstring
             - php-xml
             - php-mysql
@@ -205,6 +153,7 @@
             - php-gd
             - php-mbstring
             - php-xml
+            - php-intl
             - php-zip
             - php-pdo_mysql
         when:
@@ -222,7 +171,7 @@
             path: /var/www/html/prestashop
             recurse: yes
             owner: www-data
-            mode: '0777'
+            mode: '0755'
         when:
             - os_check.stdout | regex_search("Ubuntu") 
 
@@ -231,7 +180,7 @@
             path: /var/www/html/prestashop
             recurse: yes
             owner: apache
-            mode: '0777'
+            mode: '0755'
         when:
             - os_check.stdout | regex_search("CentOS") 
 
